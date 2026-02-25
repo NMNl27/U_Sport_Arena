@@ -21,12 +21,31 @@ export default function ReservationDetails() {
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
   const [appliedPromotion, setAppliedPromotion] = useState<Promotion | null>(null)
+  const [promotionCodePending, setPromotionCodePending] = useState(false)
+  const [currentUser, setCurrentUser] = useState<any>(null)
+
+  // Reset pending state when promotion is applied
+  useEffect(() => {
+    if (appliedPromotion) {
+      setPromotionCodePending(false)
+    }
+  }, [appliedPromotion])
+
+  // Get current user
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUser(user)
+    }
+    getCurrentUser()
+  }, [])
 
   const PRICE_PER_HOUR = 1000
   const generateTimeSlots = () => {
     const slots: TimeSlot[] = []
 
-    for (let hour = 13; hour < 24; hour++) {
+    for (let hour = 13; hour < 23; hour++) {
       const startHour = hour.toString().padStart(2, "0")
       const endHour = (hour + 1).toString().padStart(2, "0")
       
@@ -37,14 +56,6 @@ export default function ReservationDetails() {
         isBooked: false,
       })
     }
-
-    // Add 00:00 slot (midnight)
-    slots.push({
-      id: `slot-23`,
-      startTime: "23:00",
-      endTime: "00:00",
-      isBooked: false,
-    })
 
     return slots
   }
@@ -310,14 +321,26 @@ export default function ReservationDetails() {
                   <PromotionInput 
                     onApplyPromotion={setAppliedPromotion}
                     appliedPromotion={appliedPromotion}
+                    userId={currentUser?.id}
+                    onCodeChange={(hasCode) => {
+                      console.log("Reservation onCodeChange:", { hasCode, appliedPromotion })
+                      setPromotionCodePending(hasCode)
+                    }}
                   />
 
                   {/* Discount Display */}
-                  {appliedPromotion && discountAmount > 0 && (
+                  {appliedPromotion && discountAmount > 0 ? (
                     <div className="bg-red-50 border border-red-300 rounded-lg p-3 mb-4">
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-red-700 font-semibold">ส่วนลด ({getPromotionDisplayText(appliedPromotion)}):</span>
                         <span className="text-red-700 font-bold">-{discountAmount.toLocaleString()} บาท</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 border border-gray-300 rounded-lg p-3 mb-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-gray-600 font-semibold">ไม่มีรหัสส่วนลด</span>
+                        <span className="text-gray-600 font-bold">0 บาท</span>
                       </div>
                     </div>
                   )}
@@ -333,18 +356,26 @@ export default function ReservationDetails() {
 
                 {/* Booking Button */}
                 <button
-                  onClick={handleBooking}
-                  disabled={selectedSlots.length === 0}
+                  onClick={() => {
+                    console.log("Booking button clicked:", { selectedSlots: selectedSlots.length, promotionCodePending })
+                    handleBooking()
+                  }}
+                  disabled={selectedSlots.length === 0 || promotionCodePending}
                   className={`
                     w-full py-3 px-4 rounded-lg font-bold text-white transition-all
                     ${
-                      selectedSlots.length === 0
+                      selectedSlots.length === 0 || promotionCodePending
                         ? "bg-gray-400 cursor-not-allowed opacity-50"
                         : "bg-green-600 hover:bg-green-700 cursor-pointer shadow-lg hover:shadow-xl"
                     }
                   `}
                 >
-                  {selectedSlots.length === 0 ? "เลือกเวลาก่อน" : "ยืนยันการจอง"}
+                  {selectedSlots.length === 0 
+                    ? "เลือกเวลาก่อน" 
+                    : promotionCodePending 
+                    ? "กรุณาใช้รหัสส่วนลดก่อน" 
+                    : "ยืนยันการจอง"
+                  }
                 </button>
 
                 <button className="w-full mt-3 py-3 px-4 rounded-lg font-bold text-gray-700 border-2 border-gray-300 hover:border-gray-400 transition-all">

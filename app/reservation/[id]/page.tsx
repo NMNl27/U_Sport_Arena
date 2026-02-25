@@ -4,9 +4,9 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { mockFields } from "@/lib/mockData"
 import { PromotionInput } from "@/components/PromotionInput"
 import { calculateFinalPrice, getPromotionDisplayText } from "@/lib/promotions"
+import { resolveFieldImageUrl } from "@/lib/utils"
 import { Promotion } from "@/types/supabase"
 
 interface TimeSlot {
@@ -29,11 +29,71 @@ export default function ReservationDetails({
   const [mounted, setMounted] = useState(false)
   const [bookingDate, setBookingDate] = useState(new Date().toISOString().split("T")[0])
   const [appliedPromotion, setAppliedPromotion] = useState<Promotion | null>(null)
-  
-  // Get field data from mock data
-  const field = mockFields.find((f) => f.id === params.id)
+  const [promotionCodePending, setPromotionCodePending] = useState(false)
+  const [field, setField] = useState<any | null>(null)
+  const [imageUrl, setImageUrl] = useState<string>("/assets/images/stadium.jpg")
+  const [currentUser, setCurrentUser] = useState<any>(null)
 
-  const isAvailable = (field as any).status === "available" || (field as any).status === undefined
+  // Reset pending state when promotion is applied
+  useEffect(() => {
+    if (appliedPromotion) {
+      setPromotionCodePending(false)
+    }
+  }, [appliedPromotion])
+
+  // Load initial data (user + field) in parallel
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        console.log('Loading initial data for field:', params.id)
+        const supabase = createClient()
+        const idNum = Number(params.id)
+        
+        // Parallel loading of user and field data
+        const [userResult, fieldResult] = await Promise.all([
+          supabase.auth.getUser(),
+          supabase.from("fields").select("*").eq("fields_id", idNum).maybeSingle()
+        ])
+        
+        console.log('User result:', userResult.data.user?.id || 'no user')
+        console.log('Field result:', fieldResult.data ? 'found' : 'not found', fieldResult.error)
+        
+        // Set user data
+        setCurrentUser(userResult.data.user)
+        
+        // Set field data
+        if (!fieldResult.error && fieldResult.data) {
+          const data = fieldResult.data
+          const normalizedLocation = data.location ?? data.Location ?? data.address ?? data.Address ?? ""
+          const fieldWithLocation = { ...data, location: normalizedLocation }
+          setField(fieldWithLocation)
+          
+          // Use cached image resolution
+          const imageUrl = await resolveFieldImageUrl(supabase, fieldWithLocation)
+          setImageUrl(imageUrl)
+          console.log('Field data loaded successfully')
+        } else {
+          console.log('Field not found or error:', fieldResult.error)
+          setField(null)
+        }
+      } catch (e) {
+        console.error('Error loading initial data:', e)
+        setField(null)
+      }
+    }
+    
+    loadInitialData()
+  }, [params.id])
+
+  const isAvailable = String((field as any)?.status ?? "available").toLowerCase() === "available"
+
+  // Normalize numeric price for calculations and display
+  const numericPricePerHour = (() => {
+    const raw = field ? (field.price ?? field.pricePerHour ?? 0) : 0
+    const cleaned = String(raw).replace(/[^0-9.-]+/g, "")
+    const n = Number(cleaned)
+    return Number.isFinite(n) ? n : 0
+  })()
 
   // Generate time slots from 13:00 to 00:00
   const generateTimeSlots = () => {
@@ -46,79 +106,85 @@ export default function ReservationDetails({
       slots.push({
         id: `slot-${hour}`,
         startTime: `${startHour}:00`,
-        endTime: `${endHour}:00`,
+        endTime: `${endHour === '24' ? '00:00' : endHour + ':00'}`,
         isBooked: false,
       })
     }
 
-    // Add 00:00 slot (midnight)
-    slots.push({
-      id: `slot-23`,
-      startTime: "23:00",
-      endTime: "00:00",
-      isBooked: false,
-    })
-
     return slots
   }
 
+  // Optimized time slots loading
   useEffect(() => {
-    const supabase = createClient()
-    const slots = generateTimeSlots()
-    
-    // Normalize booking date format (YYYY-MM-DD)
-    let normalizedDate = bookingDate
-    if (bookingDate.includes("T")) {
-      normalizedDate = bookingDate.split("T")[0]
+    const loadTimeSlots = async () => {
+      try {
+        const supabase = createClient()
+        const slots = generateTimeSlots()
+        
+        // Normalize date
+        const normalizedDate = bookingDate.includes("T") ? bookingDate.split("T")[0] : bookingDate
+        
+        // Get local booked slots
+        const bookedSlots = localStorage.getItem("bookedSlots")
+        const booked = bookedSlots ? JSON.parse(bookedSlots) : {}
+        const fieldKey = `field_${params.id}_${normalizedDate}`
+        const localBookedTimes = booked[fieldKey] || []
+        
+        // Get server booked slots with fallback
+        let serverBookedTimes: string[] = []
+        
+        try {
+          // Try availability API first
+          const response = await fetch(`/api/availability?fieldId=${params.id}&date=${normalizedDate}`)
+          if (response.ok) {
+            const data = await response.json()
+            serverBookedTimes = data.bookedSlots || []
+          } else {
+            throw new Error('API failed')
+          }
+        } catch (e) {
+          // Simplified fallback - only query specific field bookings
+          const idNum = Number(params.id)
+          const { data: bookingsData } = await supabase
+            .from("bookings")
+            .select("timeSlots, start_time, end_time")
+            .eq("field_id", idNum)
+            .eq("booking_date", normalizedDate)
+            .in('status', ['pending', 'approved', 'confirmed'])
+          
+          if (bookingsData) {
+            for (const booking of bookingsData) {
+              if (Array.isArray(booking.timeSlots) && booking.timeSlots.length > 0) {
+                serverBookedTimes.push(...booking.timeSlots)
+              }
+            }
+          }
+        }
+        
+        // Mark booked slots
+        const allBookedTimes = new Set([...localBookedTimes, ...serverBookedTimes])
+        const updatedSlots = slots.map(slot => {
+          const slotTimeRange = `${slot.startTime} - ${slot.endTime}`
+          return allBookedTimes.has(slotTimeRange) ? { ...slot, isBooked: true } : slot
+        })
+        
+        setTimeSlots(updatedSlots)
+      } catch (error) {
+        console.error('Error loading time slots:', error)
+        // Set empty slots on error
+        setTimeSlots(generateTimeSlots())
+      } finally {
+        setLoading(false)
+      }
     }
     
-    // Load booked slots from localStorage
-    const bookedSlots = localStorage.getItem("bookedSlots")
-    const booked = bookedSlots ? JSON.parse(bookedSlots) : {}
-    const fieldKey = `field_${params.id}_${normalizedDate}`
-    const bookedTimesForDate = booked[fieldKey] || []
+    loadTimeSlots()
+  }, [bookingDate, params.id])
 
-    // Mark booked slots
-    const updatedSlots = slots.map((slot) => {
-      const slotTimeRange = `${slot.startTime} - ${slot.endTime}`
-      return bookedTimesForDate.includes(slotTimeRange)
-        ? { ...slot, isBooked: true }
-        : slot
-    })
-
-    setTimeSlots(updatedSlots)
-    setLoading(false)
+  // Set mounted state after initial load
+  useEffect(() => {
     setMounted(true)
-
-    // Subscribe to real-time booking changes from localStorage
-    const handleStorageChange = () => {
-      const updatedBooked = localStorage.getItem("bookedSlots")
-      const updatedBookedData = updatedBooked ? JSON.parse(updatedBooked) : {}
-      const bookedTimesForDate = updatedBookedData[fieldKey] || []
-
-      const refreshedSlots = slots.map((slot) => {
-        const slotTimeRange = `${slot.startTime} - ${slot.endTime}`
-        return bookedTimesForDate.includes(slotTimeRange)
-          ? { ...slot, isBooked: true }
-          : slot
-      })
-
-      setTimeSlots(refreshedSlots)
-    }
-
-    window.addEventListener("storage", handleStorageChange)
-
-    // Also listen for custom booking update events
-    const handleBookingUpdate = () => {
-      handleStorageChange()
-    }
-    window.addEventListener("bookingUpdated", handleBookingUpdate)
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange)
-      window.removeEventListener("bookingUpdated", handleBookingUpdate)
-    }
-  }, [mounted, bookingDate, params.id])
+  }, [])
 
   const toggleSlot = (slotId: string) => {
     if (timeSlots.find((s) => s.id === slotId)?.isBooked) return
@@ -134,36 +200,81 @@ export default function ReservationDetails({
       return
     }
 
-    // Create temporary booking data
-    const bookingDate = new Date().toISOString().split("T")[0]
-    const timeSlotTexts = selectedSlots.map((slotId) => {
-      const slot = timeSlots.find((s) => s.id === slotId)
-      return slot ? `${slot.startTime} - ${slot.endTime}` : ""
-    })
+    // Create temporary booking data using the selected bookingDate and selectedSlots
+    const bookingDateSelected = String(bookingDate)
+    // preserve chronological order of selected slots
+    const orderedSlots = timeSlots
+      .filter((s) => selectedSlots.includes(s.id))
+      .sort((a, b) => a.startTime.localeCompare(b.startTime))
+    const timeSlotTexts = orderedSlots.map((slot) => `${slot.startTime} - ${slot.endTime}`)
 
-    const basePrice = selectedSlots.length * (field?.pricePerHour || 0)
+    const basePrice = selectedSlots.length * numericPricePerHour
     const finalPrice = calculateFinalPrice(basePrice, appliedPromotion)
     const discountAmount = basePrice - finalPrice
 
-    const tempBooking = {
-      id: `BK${Date.now()}`,
-      fieldId: params.id,
-      fieldName: field?.name || "Unknown Field",
-      bookingDate,
-      timeSlots: timeSlotTexts,
-      totalPrice: basePrice,
-      finalPrice: finalPrice,
-      discountAmount: discountAmount,
-      appliedPromotion: appliedPromotion,
-      status: "pending" as const,
-      createdAt: new Date().toLocaleString("th-TH"),
+    try {
+      // Get current user
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      // Create the booking immediately to block the time slots
+      const createResponse = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          fieldId: params.id,
+          bookingDate: bookingDateSelected,
+          timeSlots: timeSlotTexts,
+          totalPrice: finalPrice,
+          userId: user?.id || null, // Use actual user ID
+          promotionId: appliedPromotion?.id ?? null,
+          status: 'pending'
+        }),
+      })
+
+      const createData = await createResponse.json()
+      
+      if (!createResponse.ok) {
+        alert(`ไม่สามารถสร้างการจอง: ${createData.error || 'Unknown error'}`)
+        return
+      }
+
+      const bookingId = createData.data?.id
+      
+      if (!bookingId) {
+        alert('เกิดข้อผิดพลาดในการสร้างการจอง: ไม่พบ ID การจอง')
+        return
+      }
+
+      console.log('Booking created successfully:', bookingId)
+
+      // Notify other tabs to refresh availability
+      window.dispatchEvent(new Event('bookingUpdated'))
+
+      const tempBooking = {
+        id: bookingId, // Use real booking ID
+        fieldId: params.id,
+        fieldName: field?.name || "Unknown Field",
+        bookingDate: bookingDateSelected,
+        timeSlots: timeSlotTexts,
+        totalPrice: basePrice,
+        finalPrice: finalPrice,
+        discountAmount: discountAmount,
+        appliedPromotion: appliedPromotion,
+        status: "pending" as const,
+        createdAt: new Date().toLocaleString("th-TH"),
+      }
+
+      // Save to session storage temporarily
+      sessionStorage.setItem("tempBooking", JSON.stringify(tempBooking))
+
+      // Navigate to payment option page
+      router.push("/reservation/payment-option")
+
+    } catch (error) {
+      console.error('Error creating booking:', error)
+      alert('เกิดข้อผิดพลาดในการสร้างการจอง กรุณาลองใหม่')
     }
-
-    // Save to session storage temporarily
-    sessionStorage.setItem("tempBooking", JSON.stringify(tempBooking))
-
-    // Navigate to payment option page
-    router.push("/reservation/payment-option")
   }
 
   if (!field) {
@@ -183,7 +294,98 @@ export default function ReservationDetails({
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen text-lg font-semibold">กำลังโหลด...</div>
+    return (
+      <main className="min-h-screen bg-white">
+        <div className="bg-gray-50 py-12 min-h-screen">
+          <div className="container mx-auto px-4">
+            {/* Back Button Skeleton */}
+            <div className="w-24 h-8 bg-gray-200 rounded mb-6 animate-pulse"></div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Stadium Details Skeleton */}
+              <div className="lg:col-span-2">
+                <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                  {/* Stadium Image Skeleton */}
+                  <div className="h-64 bg-gray-200 animate-pulse"></div>
+                  
+                  {/* Stadium Info Skeleton */}
+                  <div className="p-6">
+                    <div className="h-8 bg-gray-200 rounded w-3/4 mb-4 animate-pulse"></div>
+                    
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                      {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className="space-y-2">
+                          <div className="h-4 bg-gray-200 rounded w-16 animate-pulse"></div>
+                          <div className="h-6 bg-gray-200 rounded w-24 animate-pulse"></div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="border-t pt-6">
+                      <div className="h-6 bg-gray-200 rounded w-32 mb-3 animate-pulse"></div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {[1, 2, 3, 4].map((i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <div className="w-5 h-5 bg-gray-200 rounded animate-pulse"></div>
+                            <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Booking Section Skeleton */}
+              <div>
+                <div className="bg-white rounded-lg shadow-lg p-6 sticky top-6">
+                  <div className="h-6 bg-gray-200 rounded w-32 mb-4 animate-pulse"></div>
+                  
+                  {/* Date Picker Skeleton */}
+                  <div className="mb-6">
+                    <div className="h-4 bg-gray-200 rounded w-24 mb-2 animate-pulse"></div>
+                    <div className="h-10 bg-gray-200 rounded animate-pulse"></div>
+                  </div>
+                  
+                  {/* Time Slots Skeleton */}
+                  <div className="mb-6">
+                    <div className="h-4 bg-gray-200 rounded w-20 mb-3 animate-pulse"></div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <div key={i} className="h-12 bg-gray-200 rounded animate-pulse"></div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Price Summary Skeleton */}
+                  <div className="border-t pt-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
+                        <div className="h-4 bg-gray-200 rounded w-16 animate-pulse"></div>
+                      </div>
+                      <div className="flex justify-between">
+                        <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
+                        <div className="h-4 bg-gray-200 rounded w-8 animate-pulse"></div>
+                      </div>
+                    </div>
+                    <div className="border-t pt-4 mt-4">
+                      <div className="flex justify-between">
+                        <div className="h-5 bg-gray-200 rounded w-20 animate-pulse"></div>
+                        <div className="h-5 bg-gray-200 rounded w-16 animate-pulse"></div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Button Skeleton */}
+                  <div className="mt-6 h-12 bg-gray-200 rounded animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    )
   }
 
   return (
@@ -208,12 +410,12 @@ export default function ReservationDetails({
                 {/* Stadium Image */}
                 <div className="relative h-64 bg-gray-200">
                   <img
-                    src="/assets/images/stadium.jpg"
-                    alt={field.name}
+                    src={imageUrl}
+                    alt={field?.name}
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute top-4 left-4 bg-red-600 text-white px-4 py-2 rounded-full font-bold">
-                    {field.name}
+                    {field?.name}
                   </div>
                 </div>
 
@@ -223,21 +425,21 @@ export default function ReservationDetails({
 
                   <div className="grid grid-cols-2 gap-4 mb-6">
                     <div>
-                      <p className="text-sm text-gray-600">สถานที่ตั้ง</p>
-                      <p className="font-semibold text-gray-900 flex items-center gap-2">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                        </svg>
-                        {field.location}
-                      </p>
+                        <p className="text-sm text-gray-600">สถานที่ตั้ง</p>
+                        <p className="font-semibold text-gray-900 flex items-center gap-2">
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                          </svg>
+                          {field.location}
+                        </p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">ประเภท</p>
-                      <p className="font-semibold text-gray-900">Football</p>
+                      <p className="font-semibold text-gray-900">{field?.type || "-"}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">อัตราราคา</p>
-                      <p className="font-semibold text-gray-900">{field.pricePerHour} บาท/ชั่วโมง</p>
+                        <p className="text-sm text-gray-600">อัตราราคา</p>
+                        <p className="font-semibold text-gray-900">{field.price ?? field.pricePerHour ?? '-'} บาท/ชั่วโมง</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">ขนาด</p>
@@ -351,7 +553,7 @@ export default function ReservationDetails({
                 <div className="border-t pt-4 mb-6">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-gray-700">ราคาต่อชั่วโมง:</span>
-                    <span className="font-semibold text-gray-900">{field.pricePerHour} บาท</span>
+                    <span className="font-semibold text-gray-900">{numericPricePerHour.toLocaleString()} บาท</span>
                   </div>
                   <div className="flex justify-between items-center mb-4">
                     <span className="text-gray-700">จำนวนชั่วโมง:</span>
@@ -362,11 +564,15 @@ export default function ReservationDetails({
                   <PromotionInput 
                     onApplyPromotion={setAppliedPromotion}
                     appliedPromotion={appliedPromotion}
+                    userId={currentUser?.id}
+                    onCodeChange={(hasCode) => {
+                      setPromotionCodePending(hasCode)
+                    }}
                   />
 
                   {/* Discount and Price Display */}
                   {(() => {
-                    const basePrice = selectedSlots.length * field.pricePerHour
+                    const basePrice = selectedSlots.length * numericPricePerHour
                     const finalPrice = calculateFinalPrice(basePrice, appliedPromotion)
                     const discountAmount = basePrice - finalPrice
                     return (
@@ -393,17 +599,22 @@ export default function ReservationDetails({
                 {/* Booking Button */}
                 <button
                   onClick={handleBooking}
-                  disabled={selectedSlots.length === 0 || !isAvailable}
+                  disabled={selectedSlots.length === 0 || !isAvailable || promotionCodePending}
                   className={`
                     w-full py-3 px-4 rounded-lg font-bold text-white transition-all
                     ${
-                      selectedSlots.length === 0
+                      selectedSlots.length === 0 || !isAvailable || promotionCodePending
                         ? "bg-gray-400 cursor-not-allowed opacity-50"
                         : "bg-green-600 hover:bg-green-700 cursor-pointer shadow-lg hover:shadow-xl"
                     }
                   `}
                 >
-                  {selectedSlots.length === 0 ? "เลือกเวลาก่อน" : (!isAvailable ? "ไม่สามารถจองได้" : "ยืนยันการจอง")}
+                  {selectedSlots.length === 0 
+                    ? "เลือกเวลาก่อน" 
+                    : promotionCodePending 
+                    ? "กรุณาใช้รหัสส่วนลดก่อน" 
+                    : (!isAvailable ? "ไม่สามารถจองได้" : "ยืนยันการจอง")
+                  }
                 </button>
 
                 <button className="w-full mt-3 py-3 px-4 rounded-lg font-bold text-gray-700 border-2 border-gray-300 hover:border-gray-400 transition-all">

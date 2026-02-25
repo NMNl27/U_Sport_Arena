@@ -51,6 +51,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ data, error: error ? { message: error.message, code: error.code, status } : null, status, __diag: diag })
     }
 
+    if (action === 'update_vip_status') {
+      const { fieldId, vip } = body as any
+      if (!fieldId || typeof vip !== 'boolean') {
+        return NextResponse.json({ error: { message: 'Invalid fieldId or vip status' } }, { status: 400 })
+      }
+
+      const { data, error } = await admin
+        .from('fields')
+        .update({ vip })
+        .eq('fields_id', fieldId)
+        .select('*')
+        .maybeSingle()
+
+      return NextResponse.json({ 
+        data, 
+        error: error ? { message: error.message, code: error.code } : null, 
+        status: error ? 'error' : 'ok'
+      })
+    }
+
     // Default: treat as update (existing behavior)
     const { candidate, candidateValue, attemptFiltered } = body as any
 
@@ -75,25 +95,38 @@ export async function POST(req: Request) {
     const { data, error, status } = await admin
       .from('fields')
       .update(attemptFiltered)
-      .eq(candidate, candidateValue)
+      .eq(candidate, pkValue)
       .select('*')
       .maybeSingle()
 
-    // include diagnostics to help the client determine why an update may not have applied
-    const diag = {
-      candidate,
-      candidateValue,
-      candidateType: typeof candidateValue,
-      attemptFiltered,
-      supabase: {
-        status,
-        error: error ? { message: error.message, code: error.code } : null,
-        data: data ?? null,
-      },
-    }
-
-    return NextResponse.json({ data, error: error ? { message: error.message, code: error.code, status } : null, status, __diag: diag })
+    return NextResponse.json({ 
+      data, 
+      error: error ? { message: error.message, code: error.code } : null, 
+      status: error ? 'error' : 'ok'
+    })
   } catch (e: any) {
     return NextResponse.json({ error: { message: String(e) } }, { status: 500 })
   }
 }
+
+export async function GET(req: Request) {
+      try {
+        const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+        const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY
+        if (!url || !serviceRole) {
+          return NextResponse.json({ error: { message: 'Missing server Supabase configuration' } }, { status: 500 })
+        }
+
+        const supabase = createClient(url, serviceRole)
+
+        const { data, error } = await supabase.from("fields").select("*").order("name", { ascending: true })
+
+        if (error) {
+          return NextResponse.json({ error: error.message }, { status: 500 })
+        }
+
+        return NextResponse.json({ data })
+      } catch (e: any) {
+        return NextResponse.json({ error: String(e) }, { status: 500 })
+      }
+    }

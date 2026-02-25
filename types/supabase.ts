@@ -6,6 +6,8 @@ export interface User {
   email: string
   // optional avatar URL stored in `users` profile
   avatar_url?: string | null
+  // whether user account is active (true) or banned/inactive (false)
+  status_active?: boolean
   role: string
   phone_number: string
   membership_type: string
@@ -29,6 +31,8 @@ export interface Booking {
   status: string
   payment_status: string
   promotion_id: string | null
+  total_price?: number
+  created_at: string // ISO timestamp when booking was created
 }
 
 export interface Promotion {
@@ -67,6 +71,17 @@ export interface Log {
   user_id: string | null
   action: string
   details: string | null
+  created_at: string
+}
+
+export interface Notification {
+  id: string
+  user_id: string
+  title: string
+  message: string
+  type: 'booking' | 'payment' | 'promotion' | 'system' | 'review'
+  is_read: boolean
+  related_id?: string | null
   created_at: string
 }
 

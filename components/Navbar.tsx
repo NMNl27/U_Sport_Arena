@@ -4,21 +4,37 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/AuthContext"
 import { useState, useRef, useEffect } from "react"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import NotificationBell from "@/components/NotificationBell"
 
 export default function Navbar() {
   const { user, profile, loading, signOut } = useAuth()
   const pathname = usePathname()
+  const router = useRouter()
   const isAdminRoute = pathname?.startsWith("/admin") ?? false
 
   const initials = (profile?.username || user?.email || "").split(" ").map(s => s[0]).join("").slice(0,2).toUpperCase()
 
   const [menuOpen, setMenuOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
   const menuRef = useRef<HTMLDivElement | null>(null)
+  const searchRef = useRef<HTMLInputElement | null>(null)
 
   const handleLogout = async () => {
     setMenuOpen(false)
     await signOut()
+  }
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      // Navigate to search results page with query parameter
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
+    }
+  }
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value)
   }
 
   useEffect(() => {
@@ -67,37 +83,35 @@ export default function Navbar() {
           {!isAdminRoute && (
             <div className="flex-1 max-w-md">
               <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Find sports, venues..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-red-600"
-                />
-                <svg
-                  className="absolute right-3 top-2.5 w-5 h-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                <form onSubmit={handleSearch} className="relative">
+                  <input
+                    ref={searchRef}
+                    type="text"
+                    placeholder="ค้นหาสนามกีฬา..."
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-red-600"
+                    suppressHydrationWarning={true}
                   />
-                </svg>
+                  <button
+                    type="submit"
+                    className="absolute right-3 top-2.5 w-5 h-5 text-gray-400 hover:text-red-600 transition-colors"
+                  >
+                    <svg
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                  </button>
+                </form>
               </div>
-            </div>
-          )}
-
-          {/* Navigation Links (hidden on admin pages) */}
-          {!isAdminRoute && (
-            <div className="hidden md:flex items-center gap-6 flex-shrink-0">
-              <Link href="/" className="text-gray-700 hover:text-red-600 font-medium hover:shadow-md hover:-translate-y-1 px-3 py-2 rounded-lg transition-all duration-200">
-                หน้าหลัก
-              </Link>
-              <Link href="/bookings" className="text-gray-700 hover:text-red-600 font-medium hover:shadow-md hover:-translate-y-1 px-3 py-2 rounded-lg transition-all duration-200">
-                ประวัติการจอง
-              </Link>
             </div>
           )}
 
@@ -112,12 +126,12 @@ export default function Navbar() {
                     size="default"
                     className="border-destructive text-destructive hover:bg-destructive/10"
                   >
-                    Log in
+                    เข้าสู่ระบบ
                   </Button>
                 </Link>
                 <Link href="/register">
                   <Button size="default" className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-                    Register
+                    สร้างบัญชี
                   </Button>
                 </Link>
               </div>
@@ -125,10 +139,26 @@ export default function Navbar() {
               <div className="flex items-center gap-2">
                   {!isAdminRoute && (
                     <Link href="/admin">
-                      <Button variant="outline" size="default" className="border-destructive text-destructive hover:bg-destructive/10">
-                        Admin Dashboard
-                      </Button>
                     </Link>
+                  )}
+                  {isAdminRoute && (
+                    <>
+                      <Link href="/admin/promotions">
+                        <Button variant="default" size="default" className="bg-red-600 text-white hover:bg-red-700">
+                          จัดการโปรโมชัน
+                        </Button>
+                      </Link>
+                      <Link href="/admin/fieldmanage">
+                        <Button variant="default" size="default" className="bg-blue-600 text-white hover:bg-blue-700">
+                          จัดการสนาม
+                        </Button>
+                      </Link>
+                      <Link href="/admin/reviews">
+                        <Button variant="default" size="default" className="bg-yellow-500 text-white hover:bg-yellow-600">
+                          จัดการรีวิว
+                        </Button>
+                      </Link>
+                    </>
                   )}
                   <Button
                     variant="outline"
@@ -141,6 +171,7 @@ export default function Navbar() {
                 </div>
             ) : (
               <div className="flex items-center gap-2">
+                <NotificationBell />
                 <div className="relative" ref={menuRef}>
                   <button onClick={() => setMenuOpen(v => !v)} className="flex items-center">
                       {loading ? (
@@ -159,9 +190,9 @@ export default function Navbar() {
 
                   {menuOpen && (
                     <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-100 rounded-md shadow-lg z-50">
-                      <Link href="/profile" onClick={() => setMenuOpen(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Profile</Link>
-                      <Link href="/bookings" onClick={() => setMenuOpen(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">My Bookings</Link>
-                      <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Logout</button>
+                      <Link href="/profile" onClick={() => setMenuOpen(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">โปรไฟล์</Link>
+                      <Link href="/bookings" onClick={() => setMenuOpen(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">ประวัติการจอง</Link>
+                      <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">ออกจากระบบ</button>
                     </div>
                   )}
                 </div>

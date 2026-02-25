@@ -11,7 +11,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const { signIn, profile } = useAuth()
+  const { signIn } = useAuth()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -42,7 +42,7 @@ export default function LoginPage() {
         setLoading(false)
 
         // Decide redirect target based on role. Use full reload so server sees session.
-        const redirectTarget = profile?.role === "admin" ? "/admin" : "/"
+        const redirectTarget = result.profile?.role === "admin" ? "/admin" : "/"
         if (typeof window !== "undefined") {
           window.location.href = redirectTarget
         } else {
@@ -62,7 +62,7 @@ export default function LoginPage() {
     <main className="min-h-screen bg-white flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-8">
-          <div className="text-center mb-8">
+          <div className="text-center mb-4">
             <div className="flex items-center justify-center mb-4">
               <img
                 src="https://img.salehere.co.th/p/1200x0/2023/10/14/w52bktu2aajd.jpg"
@@ -70,8 +70,8 @@ export default function LoginPage() {
                 className="w-16 h-16 rounded-lg object-cover"
               />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-            <p className="text-gray-600">Sign in to your account</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">ยินดีต้อนรับ</h1>
+            <p className="text-gray-600">เข้าสู่ระบบบัญชีของคุณ</p>
           </div>
 
           {error && (
@@ -92,13 +92,13 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#DC2626] focus:border-transparent outline-none"
-                placeholder="you@example.com"
+                placeholder="อีเมลของคุณ"
               />
             </div>
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Password
+                รหัสผ่าน
               </label>
               <input
                 id="password"
@@ -116,15 +116,15 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-lg"
             >
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
             </Button>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-gray-600">
-              Don't have an account?{" "}
+              ยังไม่มีบัญชีใช่หรือไม่?{" "}
               <Link href="/register" className="text-[#DC2626] hover:underline font-medium">
-                Sign up
+                สร้างบัญชีผู้ใช้
               </Link>
             </p>
           </div>

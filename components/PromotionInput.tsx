@@ -1,19 +1,30 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Promotion } from "@/types/supabase"
-import { searchPromotionByCode, isPromotionValid, getPromotionDisplayText } from "@/lib/promotions"
+import { searchPromotionByCode, isPromotionValid, getPromotionDisplayText, canUserUsePromotion } from "@/lib/promotions"
 
 interface PromotionInputProps {
   onApplyPromotion: (promotion: Promotion | null) => void
   appliedPromotion: Promotion | null
+  onCodeChange?: (hasCode: boolean) => void
+  userId?: string | null
 }
 
-export function PromotionInput({ onApplyPromotion, appliedPromotion }: PromotionInputProps) {
+export function PromotionInput({ onApplyPromotion, appliedPromotion, onCodeChange, userId }: PromotionInputProps) {
   const [code, setCode] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
+
+  // Reset code when promotion is applied
+  useEffect(() => {
+    if (appliedPromotion) {
+      setCode("")
+      setSuccess(false)
+      setError("")
+    }
+  }, [appliedPromotion])
 
   const handleApplyCode = async () => {
     if (!code.trim()) {
@@ -40,10 +51,24 @@ export function PromotionInput({ onApplyPromotion, appliedPromotion }: Promotion
         return
       }
 
+      // Check if user has already used this promotion
+      if (userId && promotion) {
+        console.log('Checking promotion usage for user:', { userId, promotionId: promotion.id, promotionName: promotion.name })
+        const canUse = await canUserUsePromotion(promotion.id, userId)
+        if (!canUse) {
+          setError("คุณได้ใช้รหัสส่วนลดนี้ไปแล้ว")
+          setLoading(false)
+          return
+        }
+      } else {
+        console.log('Skipping promotion usage check:', { userId, promotion: !!promotion })
+      }
+
       onApplyPromotion(promotion)
       setSuccess(true)
       setCode("")
       setError("")
+      onCodeChange?.(false)
     } catch (err) {
       setError("เกิดข้อผิดพลาดในการตรวจสอบรหัสส่วนลด")
     } finally {
@@ -56,6 +81,7 @@ export function PromotionInput({ onApplyPromotion, appliedPromotion }: Promotion
     setCode("")
     setError("")
     setSuccess(false)
+    onCodeChange?.(false)
   }
 
   return (
@@ -92,13 +118,21 @@ export function PromotionInput({ onApplyPromotion, appliedPromotion }: Promotion
         // Show input form
         <div className="space-y-3">
           <label className="block text-sm font-semibold text-gray-700">
-            มีรหัสส่วนลด?
+            รหัสส่วนลด
           </label>
           <div className="flex gap-2">
             <input
               type="text"
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => {
+                const newValue = e.target.value
+                setCode(newValue)
+                const hasCode = newValue.trim().length > 0 && !appliedPromotion
+                console.log("PromotionInput onChange:", { newValue, hasCode, appliedPromotion, onCodeChange })
+                if (onCodeChange) {
+                  onCodeChange(hasCode)
+                }
+              }}
               onKeyPress={(e) => e.key === "Enter" && handleApplyCode()}
               placeholder="ใส่รหัสส่วนลด"
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-red-600 text-sm"

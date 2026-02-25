@@ -74,53 +74,53 @@ export function getPromotionDisplayText(promotion: Promotion): string {
 }
 
 /**
- * Mock promotion data for testing
+ * Check if user has already used this promotion
+ * @param promotionId - Promotion ID
+ * @param userId - User ID
+ * @returns true if user can use this promotion
  */
-export const mockPromotions: Promotion[] = [
-  {
-    id: 'promo-001',
-    name: 'SUMMER200',
-    description: 'ส่วนลดฤดูร้อน 200 บาท',
-    discount_percentage: null,
-    discount_amount: 200,
-    valid_from: new Date('2025-01-01').toISOString(),
-    valid_until: new Date('2026-12-31').toISOString(),
-    status: 'active',
-  },
-  {
-    id: 'promo-002',
-    name: 'WELCOME20',
-    description: 'ส่วนลด 20% สำหรับสมาชิกใหม่',
-    discount_percentage: 20,
-    discount_amount: null,
-    valid_from: new Date('2025-01-01').toISOString(),
-    valid_until: new Date('2026-12-31').toISOString(),
-    status: 'active',
-  },
-  {
-    id: 'promo-003',
-    name: 'VIPUSER500',
-    description: 'ส่วนลด 500 บาทสำหรับสมาชิก VIP',
-    discount_percentage: null,
-    discount_amount: 500,
-    valid_from: new Date('2025-01-01').toISOString(),
-    valid_until: new Date('2026-12-31').toISOString(),
-    status: 'active',
-  },
-  {
-    id: 'promo-004',
-    name: 'EXPIRED2024',
-    description: 'โปรโมชั่นที่หมดอายุแล้ว',
-    discount_percentage: null,
-    discount_amount: 300,
-    valid_from: new Date('2023-01-01').toISOString(),
-    valid_until: new Date('2024-12-31').toISOString(),
-    status: 'active',
-  },
-]
+export async function canUserUsePromotion(promotionId: string, userId: string): Promise<boolean> {
+  if (!userId) {
+    console.log('canUserUsePromotion: No userId provided')
+    return false
+  }
+  
+  try {
+    const supabase = createClient()
+    console.log('Checking promotion usage:', { promotionId, userId })
+    
+    const { data, error } = await supabase
+      .from('promotion_usage')
+      .select('id')
+      .eq('promotion_id', promotionId)
+      .eq('user_id', userId)
+      .single()
+    
+    console.log('Promotion usage check result:', { data, error })
+    
+    // Check specific error types
+    if (error) {
+      // Table doesn't exist or permission issues - allow usage for now
+      if (error.code === 'PGRST116' || error.message?.includes('406') || error.message?.includes('permission')) {
+        console.log('promotion_usage table not accessible, allowing usage')
+        return true
+      }
+    }
+    
+    // If no record found (error), user can use the promotion
+    // If record found (data), user cannot use the promotion
+    const canUse = !!error
+    console.log('User can use promotion:', canUse)
+    return canUse
+  } catch (error) {
+    console.error('Error checking promotion usage:', error)
+    // If there's a complete error, allow usage (better than blocking legitimate users)
+    return true
+  }
+}
 
 /**
- * Search for promotion by code (queries Supabase database with fallback to mock data)
+ * Search for promotion by code (queries Supabase database only)
  * @param code - Promotion code
  * @returns Promotion object or null
  */
@@ -136,22 +136,13 @@ export async function searchPromotionByCode(code: string): Promise<Promotion | n
       .single()
 
     if (error || !data) {
-      // Fallback to mock data if database query fails or no data found
-      console.log('Database query failed or no data, using mock data fallback')
-      const mockPromotion = mockPromotions.find(
-        (p) => p.name.toUpperCase() === normalizedCode
-      )
-      return mockPromotion || null
+      console.log('Promotion not found in database:', { code: normalizedCode, error })
+      return null
     }
 
     return data as Promotion
   } catch (error) {
     console.error('Error searching promotion:', error)
-    // Fallback to mock data
-    const normalizedCode = code.toUpperCase().trim()
-    const mockPromotion = mockPromotions.find(
-      (p) => p.name.toUpperCase() === normalizedCode
-    )
-    return mockPromotion || null
+    return null
   }
 }

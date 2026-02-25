@@ -11,7 +11,7 @@ interface AuthContextType {
   session: Session | null
   profile: UserProfile | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<{ error: any }>
+  signIn: (email: string, password: string) => Promise<{ error: any; profile: UserProfile | null }>
   signUp: (
     email: string,
     password: string,
@@ -144,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       console.log("AuthContext: Attempting sign in for:", email)
-      
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -152,30 +152,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         console.error("AuthContext: Sign in error:", error)
-        return { error }
+        return { error, profile: null }
       }
 
-      if (data.user) {
-        console.log("AuthContext: Sign in successful, fetching profile...")
-        setUser(data.user)
-        setSession(data.session)
-        
-        // Fetch profile after login
+      if (!data?.user) {
+        return { error: new Error('No user returned from auth'), profile: null }
+      }
+
+      // Fetch profile before accepting login so we can enforce status_active
+      const userProfile = await fetchUserProfile(data.user.id)
+      if (userProfile && userProfile.status_active === false) {
+        // Immediately sign out and reject login
         try {
-          const userProfile = await fetchUserProfile(data.user.id)
-          setProfile(userProfile)
-          console.log("AuthContext: Profile fetched successfully")
-        } catch (profileError) {
-          console.error("AuthContext: Error fetching profile:", profileError)
-          // Don't fail the login if profile fetch fails, just log it
+          await supabase.auth.signOut()
+        } catch (e) {
+          console.error('AuthContext: error signing out disabled user', e)
         }
+        return { error: new Error('บัญชีถูกระงับ (inactive)'), profile: null }
       }
 
-      return { error: null }
+      // Accept login
+      setUser(data.user)
+      setSession(data.session ?? null)
+      setProfile(userProfile)
+      console.log("AuthContext: Profile fetched successfully")
+
+      return { error: null, profile: userProfile }
     } catch (err) {
       console.error("AuthContext: Unexpected error in signIn:", err)
       return {
         error: err instanceof Error ? err : new Error("An unexpected error occurred"),
+        profile: null,
       }
     }
   }
@@ -196,6 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           username: username,
           phone_number: phone_number,
           membership_type: "standard", // Default membership type
+          status_active: true, // Ensure new users are active by default
         },
       },
     })
@@ -242,12 +250,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Fetch profile in background (do not await)
         if (initialSession?.user) {
-          fetchUserProfile(initialSession.user.id)
-            .then((userProfile) => {
+          try {
+            const userProfile = await fetchUserProfile(initialSession.user.id)
+            if (userProfile && userProfile.status_active === false) {
+              // sign out disabled user
+              try {
+                await supabase.auth.signOut()
+              } catch (e) {
+                console.error('AuthContext: error signing out disabled user (initial)', e)
+              }
+              if (mounted) {
+                setUser(null)
+                setSession(null)
+                setProfile(null)
+              }
+            } else {
               if (mounted) setProfile(userProfile)
               if (process.env.NODE_ENV !== 'production') console.log('AuthContext: initial profile (bg)', userProfile)
-            })
-            .catch((err) => console.error('AuthContext: background fetchUserProfile error', err))
+            }
+          } catch (err) {
+            console.error('AuthContext: background fetchUserProfile error', err)
+          }
         }
       } catch (err) {
         console.error("AuthContext: getSession error", err)
@@ -270,8 +293,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (mounted) setLoading(false)
 
       if (session?.user) {
+        // fetch profile and enforce status_active
         fetchUserProfile(session.user.id)
-          .then((userProfile) => {
+          .then(async (userProfile) => {
+            if (userProfile && userProfile.status_active === false) {
+              try {
+                await supabase.auth.signOut()
+              } catch (e) {
+                console.error('AuthContext: error signing out disabled user (onAuthStateChange)', e)
+              }
+              if (mounted) {
+                setUser(null)
+                setSession(null)
+                setProfile(null)
+              }
+              return
+            }
             if (mounted) setProfile(userProfile)
             if (process.env.NODE_ENV !== 'production') console.log('AuthContext: onAuthStateChange profile (bg)', userProfile)
           })
@@ -291,22 +328,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // If the loaded profile has admin role, redirect to admin home
   useEffect(() => {
     if (profile && profile.role === "admin") {
       try {
-        router.push("/admin")
-      } catch (e) {
-        console.error("AuthContext: redirect to /admin failed", e)
-      }
-    }
-  }, [profile, router])
-
-  // If the loaded profile has admin role, redirect to admin home
-  useEffect(() => {
-    if (profile && profile.role === "admin") {
-      try {
-        router.push("/admin")
+        if (typeof window !== "undefined") {
+          const currentPath = window.location.pathname
+          if (currentPath === "/" || currentPath === "/login" || currentPath === "/register") {
+            router.replace("/admin")
+          }
+        }
       } catch (e) {
         console.error("AuthContext: redirect to /admin failed", e)
       }

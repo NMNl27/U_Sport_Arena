@@ -14,7 +14,7 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const { signUp } = useAuth()
+  const { signUp, signOut } = useAuth()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,12 +44,17 @@ export default function RegisterPage() {
     setLoading(true)
 
     const { error } = await signUp(email, password, username, phone_number)
+    
+    console.log('Register result:', { error, email, username })
 
     if (error) {
       setError(error.message || "Failed to create account")
       setLoading(false)
     } else {
-      // Redirect to login page after successful registration
+      // Sign out after successful registration to prevent auto-login
+      console.log('Registration successful, signing out and redirecting to login...')
+      await signOut()
+      setLoading(false)
       router.push("/login")
     }
   }
@@ -66,8 +71,8 @@ export default function RegisterPage() {
                 className="w-16 h-16 rounded-lg object-cover"
               />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
-            <p className="text-gray-600">Sign up to get started</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">สร้างบัญชีผู้ใช้</h1>
+            <p className="text-gray-600">สร้างบัญชีผู้ใช้เพื่อเริ่มต้นใช้งาน</p>
           </div>
 
           {error && (
@@ -79,7 +84,7 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                Username
+                ชื่อบัญชีผู้ใช้
               </label>
               <input
                 id="username"
@@ -88,7 +93,7 @@ export default function RegisterPage() {
                 onChange={(e) => setUsername(e.target.value)}
                 required
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-destructive focus:border-transparent outline-none"
-                placeholder="johndoe"
+                placeholder="ชื่อบัญชีผู้ใช้"
               />
             </div>
 
@@ -103,7 +108,7 @@ export default function RegisterPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-destructive focus:border-transparent outline-none"
-                placeholder="you@example.com"
+                placeholder="อีเมลของคุณ"
               />
             </div>
 
@@ -112,7 +117,7 @@ export default function RegisterPage() {
                 htmlFor="phone_number"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                Phone Number
+                เบอร์โทรศัพท์
               </label>
               <input
                 id="phone_number"
@@ -121,13 +126,13 @@ export default function RegisterPage() {
                 onChange={(e) => setPhone_number(e.target.value)}
                 required
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-destructive focus:border-transparent outline-none"
-                placeholder="+1234567890"
+                placeholder="เบอร์โทรศัพท์ของคุณ"
               />
             </div>
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Password
+                รหัสผ่าน
               </label>
               <input
                 id="password"
@@ -139,7 +144,7 @@ export default function RegisterPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-destructive focus:border-transparent outline-none"
                 placeholder="••••••••"
               />
-              <p className="text-xs text-gray-500 mt-1">Must be at least 6 characters</p>
+              <p className="text-xs text-gray-500 mt-1">ต้องมีความยาวอย่างน้อย 6 ตัวอักษร</p>
             </div>
 
             <div>
@@ -147,7 +152,7 @@ export default function RegisterPage() {
                 htmlFor="confirmPassword"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                Confirm Password
+                ยืนยันรหัสผ่าน
               </label>
               <input
                 id="confirmPassword"
@@ -165,15 +170,15 @@ export default function RegisterPage() {
               disabled={loading}
               className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-lg py-3"
             >
-              {loading ? "Creating account..." : "Register"}
+              {loading ? "กำลังสร้างบัญชีผู้ใช้..." : "สร้างบัญชี"}
             </Button>
           </form>
 
           <div className="mt-4 text-center">
             <p className="text-gray-600">
-              Already have an account? {" "}
+              คุณมีบัญชีอยู่แล้วใช่หรือไม่? {" "}
               <Link href="/login" className="text-destructive hover:underline font-medium">
-                Log in
+                เข้าสู่ระบบ
               </Link>
             </p>
           </div>

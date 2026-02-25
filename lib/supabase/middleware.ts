@@ -42,6 +42,16 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
+  if (pathname === '/admin/usermanage') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/admin/fieldmanage'
+    const redirectResponse = NextResponse.redirect(url)
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value, cookie)
+    })
+    return redirectResponse
+  }
+
   // If user is NOT logged in and tries to access protected routes, redirect to login
   const protectedPaths = ['/bookings', '/fields']
   const isProtected = protectedPaths.some((p) => pathname === p || pathname.startsWith(p + '/'))
@@ -55,10 +65,47 @@ export async function updateSession(request: NextRequest) {
     return redirectResponse
   }
 
+  // If user is logged in and is an admin, visiting '/' should go straight to '/admin'
+  if (user && pathname === '/') {
+    try {
+      const { data: roleRow } = await supabase
+        .from('users')
+        .select('role')
+        .eq('user_id', user.id)
+        .single()
+
+      if (roleRow?.role === 'admin') {
+        const url = request.nextUrl.clone()
+        url.pathname = '/admin'
+        const redirectResponse = NextResponse.redirect(url)
+        supabaseResponse.cookies.getAll().forEach((cookie) => {
+          redirectResponse.cookies.set(cookie.name, cookie.value, cookie)
+        })
+        return redirectResponse
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   // If user HAS a session (is logged in) and tries to access '/login' or '/register', redirect to home
   if (user && (pathname === '/login' || pathname === '/register')) {
     const url = request.nextUrl.clone()
-    url.pathname = '/'
+    try {
+      const { data: roleRow } = await supabase
+        .from('users')
+        .select('role')
+        .eq('user_id', user.id)
+        .single()
+
+      if (roleRow?.role === 'admin') {
+        url.pathname = '/admin'
+      } else {
+        url.pathname = '/'
+      }
+    } catch {
+      url.pathname = '/'
+    }
     // Create redirect response and preserve cookies
     const redirectResponse = NextResponse.redirect(url)
     // Copy cookies from supabaseResponse to maintain session
