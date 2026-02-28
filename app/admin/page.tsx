@@ -1058,11 +1058,21 @@ export default function AdminPage() {
                               const eTime = eParts.time || formatTimeOnly(String(rawEnd))
                               timeRange = `${sTime} - ${eTime}`
                             } else if (Array.isArray(g.timeSlots) && g.timeSlots.length > 0) {
+                              // Use same improved parsing for cancellation requests
                               const first = String(g.timeSlots[0] || '')
                               const last = String(g.timeSlots[g.timeSlots.length - 1] || '')
-                              const m1 = first.match(/(\d{1,2}:\d{2})/)
-                              const m2 = last.match(/(\d{1,2}:\d{2})/)
-                              if (m1 && m2) timeRange = `${m1[1]} - ${m2[1]}`
+                              const parseSlot = (slotStr: string, getEnd: boolean = false) => {
+                                if (getEnd) {
+                                  const endMatch = slotStr.match(/-\s*(\d{1,2}:\d{2})/)
+                                  return endMatch ? endMatch[1] : null
+                                } else {
+                                  const startMatch = slotStr.match(/(\d{1,2}:\d{2})/)
+                                  return startMatch ? startMatch[1] : null
+                                }
+                              }
+                              const startT = parseSlot(first, false)
+                              const endT = parseSlot(last, true)
+                              if (startT && endT) timeRange = `${startT} - ${endT}`
                               else timeRange = String(g.timeSlots.join(', '))
                             } else if (Array.isArray(g._items) && g._items.length > 0) {
                               const it = g._items[0]
@@ -1231,8 +1241,35 @@ export default function AdminPage() {
                           let startTimeDisplay = ''
                           let endTimeDisplay = ''
                           try {
-                            // Prefer explicit start_time/end_time fields
-                            if (booking.start_time && booking.end_time) {
+                            // Prioritize timeSlots array (original local time selection) over UTC start_time/end_time
+                            if (booking.timeSlots && Array.isArray(booking.timeSlots) && booking.timeSlots.length > 0) {
+                              // Use timeSlots first - this preserves the original local time selection
+                              const first = String(booking.timeSlots[0] || '')
+                              const last = String(booking.timeSlots[booking.timeSlots.length - 1] || '')
+                              // Parse time ranges like "13:00 - 14:00"
+                              const parseSlot = (slotStr: string, getEnd: boolean = false) => {
+                                if (getEnd) {
+                                  // For end time, look for the time after the dash
+                                  const endMatch = slotStr.match(/-\s*(\d{1,2}:\d{2})/)
+                                  return endMatch ? endMatch[1] : null
+                                } else {
+                                  // For start time, look for the first time
+                                  const startMatch = slotStr.match(/(\d{1,2}:\d{2})/)
+                                  return startMatch ? startMatch[1] : null
+                                }
+                              }
+                              const startT = parseSlot(first, false)
+                              const endT = parseSlot(last, true)
+                              if (startT && endT) {
+                                dateRange = booking.bookingDate ? formatDateOnly(String(booking.bookingDate)) : ''
+                                startTimeDisplay = startT
+                                endTimeDisplay = endT
+                                timeRange = `${startT} - ${endT}`
+                              } else {
+                                timeRange = String(booking.timeSlots.join(', '))
+                              }
+                            } else if (booking.start_time && booking.end_time) {
+                              // Fallback to start_time/end_time only if timeSlots not available
                               const sRaw = String(booking.start_time)
                               const eRaw = String(booking.end_time)
                               const sParts = extractDateTimeParts(sRaw)
@@ -1253,28 +1290,9 @@ export default function AdminPage() {
 
                               // Use extracted HH:MM if available to reflect DB values exactly
                               startTimeDisplay = sParts.time || formatTimeOnly(sRaw)
-                          endTimeDisplay = eParts.time || formatTimeOnly(eRaw)
-                          timeRange = `${startTimeDisplay} - ${endTimeDisplay}`
-                        } else if (booking.timeSlots && Array.isArray(booking.timeSlots) && booking.timeSlots.length > 0) {
-                          // fallback: booking.timeSlots contains strings like "13:00 - 14:00"
-                          const first = String(booking.timeSlots[0] || '')
-                          const last = String(booking.timeSlots[booking.timeSlots.length - 1] || '')
-                          // try parse first and last ranges
-                          const parseSlot = (slotStr: string) => {
-                            const m = slotStr.match(/(\d{1,2}:\d{2})/) 
-                            return m ? m[1] : null
-                          }
-                          const startT = parseSlot(first)
-                          const endT = parseSlot(last)
-                          if (startT && endT) {
-                            dateRange = booking.bookingDate ? String(booking.bookingDate) : ''
-                            startTimeDisplay = startT
-                            endTimeDisplay = endT
-                            timeRange = `${startT} - ${endT}`
-                          } else {
-                            timeRange = String(booking.timeSlots.join(', '))
-                          }
-                        } else {
+                              endTimeDisplay = eParts.time || formatTimeOnly(eRaw)
+                              timeRange = `${startTimeDisplay} - ${endTimeDisplay}`
+                            } else {
                           dateRange = ''
                           timeRange = ''
                         }
