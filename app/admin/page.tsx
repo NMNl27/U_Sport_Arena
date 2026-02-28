@@ -516,8 +516,10 @@ export default function AdminPage() {
   const formatTimeOnly = (dateString: string) => {
     try {
       const d = new Date(dateString)
-      // Use Thai 24-hour formatting
-      return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })
+      // Use UTC time to avoid timezone conversion issues
+      const hh = String(d.getUTCHours()).padStart(2, '0')
+      const mm = String(d.getUTCMinutes()).padStart(2, '0')
+      return `${hh}:${mm}`
     } catch {
       return String(dateString || "")
     }
