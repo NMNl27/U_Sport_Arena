@@ -1357,8 +1357,8 @@ export default function AdminPage() {
                               try {
                                 const s = new Date(sIso)
                                 const e = new Date(eIso)
-                                const a = s.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })
-                                const b = e.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })
+                                const a = String(s.getUTCHours()).padStart(2, '0') + ':' + String(s.getUTCMinutes()).padStart(2, '0')
+                                const b = String(e.getUTCHours()).padStart(2, '0') + ':' + String(e.getUTCMinutes()).padStart(2, '0')
                                 slots.push(`${a}-${b}`)
                               } catch (e) {
                                 // fallback to raw values
@@ -1385,8 +1385,8 @@ export default function AdminPage() {
                               const next = new Date(cur)
                               next.setMinutes(0)
                               next.setHours(cur.getHours() + 1)
-                              const a = cur.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })
-                              const b = next.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })
+                              const a = String(cur.getUTCHours()).padStart(2, '0') + ':' + String(cur.getUTCMinutes()).padStart(2, '0')
+                              const b = String(next.getUTCHours()).padStart(2, '0') + ':' + String(next.getUTCMinutes()).padStart(2, '0')
                               slots.push(`${a}-${b}`)
                               cur = next
                             }
@@ -1639,7 +1639,7 @@ export default function AdminPage() {
                                 if (selectedBooking.start_time && selectedBooking.end_time) {
                                   const start = new Date(selectedBooking.start_time)
                                   const end = new Date(selectedBooking.end_time)
-                                  return `${start.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })} - ${end.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}`
+                                  return `${String(start.getUTCHours()).padStart(2, '0')}:${String(start.getUTCMinutes()).padStart(2, '0')} - ${String(end.getUTCHours()).padStart(2, '0')}:${String(end.getUTCMinutes()).padStart(2, '0')}`
                                 }
                                 return '-'
                               } catch (e) {
@@ -1809,7 +1809,7 @@ export default function AdminPage() {
                               if (confirmAction.booking.start_time && confirmAction.booking.end_time) {
                                 const start = new Date(confirmAction.booking.start_time)
                                 const end = new Date(confirmAction.booking.end_time)
-                                return `${start.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })} - ${end.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}`
+                                return `${String(start.getUTCHours()).padStart(2, '0')}:${String(start.getUTCMinutes()).padStart(2, '0')} - ${String(end.getUTCHours()).padStart(2, '0')}:${String(end.getUTCMinutes()).padStart(2, '0')}`
                               }
                               return '-'
                             } catch (e) {
