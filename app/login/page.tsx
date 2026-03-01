@@ -59,28 +59,28 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white flex items-center justify-center px-4">
+    <main className="min-h-screen bg-white flex items-center justify-center px-4 sm:px-6 py-8">
       <div className="w-full max-w-md">
-        <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-8">
-          <div className="text-center mb-4">
+        <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-6 sm:p-8">
+          <div className="text-center mb-4 sm:mb-6">
             <div className="flex items-center justify-center mb-4">
               <img
                 src="https://img.salehere.co.th/p/1200x0/2023/10/14/w52bktu2aajd.jpg"
                 alt="U Sport Arena Logo"
-                className="w-16 h-16 rounded-lg object-cover"
+                className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg object-cover"
               />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">ยินดีต้อนรับ</h1>
-            <p className="text-gray-600">เข้าสู่ระบบบัญชีของคุณ</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">ยินดีต้อนรับ</h1>
+            <p className="text-sm sm:text-base text-gray-600">เข้าสู่ระบบบัญชีของคุณ</p>
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-3 sm:px-4 py-2 sm:py-3 rounded mb-4 sm:mb-6 text-sm">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 Email
@@ -91,7 +91,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#DC2626] focus:border-transparent outline-none"
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#DC2626] focus:border-transparent outline-none text-base"
                 placeholder="อีเมลของคุณ"
               />
             </div>
@@ -106,7 +106,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#DC2626] focus:border-transparent outline-none"
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#DC2626] focus:border-transparent outline-none text-base"
                 placeholder="••••••••"
               />
             </div>
@@ -114,14 +114,14 @@ export default function LoginPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-lg"
+              className="w-full bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-lg py-2 sm:py-3 text-base touch-target"
             >
               {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-gray-600">
+          <div className="mt-4 sm:mt-6 text-center">
+            <p className="text-sm sm:text-base text-gray-600">
               ยังไม่มีบัญชีใช่หรือไม่?{" "}
               <Link href="/register" className="text-[#DC2626] hover:underline font-medium">
                 สร้างบัญชีผู้ใช้

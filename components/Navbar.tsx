@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useState, useRef, useEffect } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import NotificationBell from "@/components/NotificationBell"
+import { Menu, X, Search } from "lucide-react"
 
 export default function Navbar() {
   const { user, profile, loading, signOut } = useAuth()
@@ -16,12 +17,14 @@ export default function Navbar() {
   const initials = (profile?.username || user?.email || "").split(" ").map(s => s[0]).join("").slice(0,2).toUpperCase()
 
   const [menuOpen, setMenuOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const menuRef = useRef<HTMLDivElement | null>(null)
   const searchRef = useRef<HTMLInputElement | null>(null)
 
   const handleLogout = async () => {
     setMenuOpen(false)
+    setMobileMenuOpen(false)
     await signOut()
   }
 
@@ -55,17 +58,17 @@ export default function Navbar() {
 
   return (
     <nav className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-      <div className="max-w-screen-2xl mx-auto px-6 md:px-12">
-        <div className="flex items-center justify-between h-20 gap-8">
+      <div className="max-w-screen-2xl mx-auto px-3 sm:px-4 md:px-12">
+        <div className="flex items-center justify-between h-14 sm:h-16 md:h-20 gap-2 md:gap-8">
           {isAdminRoute ? (
             <div className="flex items-center space-x-2 flex-shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="https://img.salehere.co.th/p/1200x0/2023/10/14/w52bktu2aajd.jpg"
                 alt="U Sport Arena Logo"
-                className="h-14 w-14 rounded-full object-cover"
+                className="h-8 w-8 sm:h-10 sm:w-10 md:h-14 md:w-14 rounded-full object-cover"
               />
-              <span className="text-3xl font-extrabold text-gray-900">U Sport Arena</span>
+              <span className="text-lg sm:text-xl md:text-3xl font-extrabold text-gray-900">U Sport Arena</span>
             </div>
           ) : (
             <Link href="/" className="flex items-center space-x-2 flex-shrink-0">
@@ -73,15 +76,15 @@ export default function Navbar() {
               <img
                 src="https://img.salehere.co.th/p/1200x0/2023/10/14/w52bktu2aajd.jpg"
                 alt="U Sport Arena Logo"
-                className="h-14 w-14 rounded-full object-cover"
+                className="h-8 w-8 sm:h-10 sm:w-10 md:h-14 md:w-14 rounded-full object-cover"
               />
-              <span className="text-3xl font-extrabold text-gray-900">U Sport Arena</span>
+              <span className="text-lg sm:text-xl md:text-3xl font-extrabold text-gray-900">U Sport Arena</span>
             </Link>
           )}
 
-          {/* Search Bar (hidden on admin pages) */}
+          {/* Search Bar (hidden on mobile, shown on desktop) */}
           {!isAdminRoute && (
-            <div className="flex-1 max-w-md">
+            <div className="hidden md:flex flex-1 max-w-md">
               <div className="relative">
                 <form onSubmit={handleSearch} className="relative">
                   <input
@@ -115,7 +118,8 @@ export default function Navbar() {
             </div>
           )}
 
-          <div className="flex items-center gap-4 flex-shrink-0">
+          {/* Desktop Menu */}
+          <div className="hidden md:flex items-center gap-4 flex-shrink-0">
             {loading && !user ? (
               <div className="h-9 w-20 bg-gray-200 animate-pulse rounded"></div>
             ) : !user ? (
@@ -175,9 +179,9 @@ export default function Navbar() {
                 <div className="relative" ref={menuRef}>
                   <button onClick={() => setMenuOpen(v => !v)} className="flex items-center">
                       {loading ? (
-                        <div className="h-12 w-12 md:h-14 md:w-14 rounded-full bg-gray-200 animate-pulse" />
+                        <div className="h-10 w-10 md:h-14 md:w-14 rounded-full bg-gray-200 animate-pulse" />
                       ) : (
-                        <div className="h-12 w-12 md:h-14 md:w-14 rounded-full overflow-hidden bg-destructive/10 flex items-center justify-center text-base md:text-lg font-semibold text-destructive shadow-sm">
+                        <div className="h-10 w-10 md:h-14 md:w-14 rounded-full overflow-hidden bg-destructive/10 flex items-center justify-center text-sm md:text-lg font-semibold text-destructive shadow-sm">
                           {profile?.avatar_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={profile.avatar_url} alt="Profile" className="h-full w-full object-cover" />
@@ -199,7 +203,99 @@ export default function Navbar() {
               </div>
             )}
           </div>
+
+          {/* Mobile Menu Button */}
+          <div className="md:hidden flex items-center gap-2">
+            {!isAdminRoute && (
+              <button
+                onClick={() => router.push('/search')}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <Search className="w-5 h-5 text-gray-600" />
+              </button>
+            )}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              {mobileMenuOpen ? (
+                <X className="w-5 h-5 text-gray-600" />
+              ) : (
+                <Menu className="w-5 h-5 text-gray-600" />
+              )}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile Menu Dropdown */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-gray-200 py-4">
+            {loading && !user ? (
+              <div className="flex items-center gap-2 px-4">
+                <div className="h-9 w-20 bg-gray-200 animate-pulse rounded"></div>
+              </div>
+            ) : !user ? (
+              <div className="flex flex-col gap-2 px-4">
+                <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                  <Button
+                    variant="outline"
+                    size="default"
+                    className="w-full border-destructive text-destructive hover:bg-destructive/10"
+                  >
+                    เข้าสู่ระบบ
+                  </Button>
+                </Link>
+                <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
+                  <Button size="default" className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                    สร้างบัญชี
+                  </Button>
+                </Link>
+              </div>
+            ) : profile?.role === "admin" ? (
+              <div className="flex flex-col gap-2 px-4">
+                {isAdminRoute && (
+                  <>
+                    <Link href="/admin/promotions" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="default" size="default" className="w-full bg-red-600 text-white hover:bg-red-700">
+                        จัดการโปรโมชัน
+                      </Button>
+                    </Link>
+                    <Link href="/admin/fieldmanage" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="default" size="default" className="w-full bg-blue-600 text-white hover:bg-blue-700">
+                        จัดการสนาม
+                      </Button>
+                    </Link>
+                    <Link href="/admin/reviews" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="default" size="default" className="w-full bg-yellow-500 text-white hover:bg-yellow-600">
+                        จัดการรีวิว
+                      </Button>
+                    </Link>
+                  </>
+                )}
+                <Button
+                  variant="outline"
+                  size="default"
+                  onClick={handleLogout}
+                  className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  Logout
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2 px-4">
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm font-medium text-gray-700">
+                    {profile?.username || user?.email}
+                  </span>
+                  <NotificationBell />
+                </div>
+                <Link href="/profile" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg">โปรไฟล์</Link>
+                <Link href="/bookings" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg">ประวัติการจอง</Link>
+                <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg">ออกจากระบบ</button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </nav>
   )

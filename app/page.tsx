@@ -189,13 +189,13 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-white">
       {/* Hero Slider Section */}
-      <div className="bg-gray-50 py-10">
-        <div className="container mx-auto px-2">
+      <div className="bg-gray-50 py-4 sm:py-6 md:py-10">
+        <div className="container mx-auto px-2 sm:px-4">
           <div className="relative max-w-3xl mx-auto">
             {/* Slider Container */}
             <div className="relative overflow-hidden rounded-lg shadow-lg">
               <div 
-                className="flex transition-transform duration-500 ease-in-out h-96"
+                className="flex transition-transform duration-500 ease-in-out h-64 sm:h-80 md:h-96"
                 style={{ transform: `translateX(-${currentSlide * 100}%)` }}
               >
                 {sliderImages.map((image, index) => (
@@ -203,7 +203,7 @@ export default function Home() {
                     <img
                       src={image.url}
                       alt={image.alt}
-                      className="w-full h-96 object-cover"
+                      className="w-full h-64 sm:h-80 md:h-96 object-cover"
                     />
                   </div>
                 ))}
@@ -212,24 +212,24 @@ export default function Home() {
               {/* Navigation Buttons */}
               <button
                 onClick={prevSlide}
-                className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-2 rounded-full shadow-lg transition-colors"
+                className="absolute left-2 sm:left-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-1.5 sm:p-2 rounded-full shadow-lg transition-colors"
               >
-                <ChevronLeft className="w-6 h-6" />
+                <ChevronLeft className="w-4 h-4 sm:w-6 sm:h-6" />
               </button>
               <button
                 onClick={nextSlide}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-2 rounded-full shadow-lg transition-colors"
+                className="absolute right-2 sm:right-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-1.5 sm:p-2 rounded-full shadow-lg transition-colors"
               >
-                <ChevronRight className="w-6 h-6" />
+                <ChevronRight className="w-4 h-4 sm:w-6 sm:h-6" />
               </button>
               
               {/* Dots Indicator */}
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
+              <div className="absolute bottom-2 sm:bottom-4 left-1/2 transform -translate-x-1/2 flex gap-1.5 sm:gap-2">
                 {sliderImages.map((_, index) => (
                   <button
                     key={index}
                     onClick={() => setCurrentSlide(index)}
-                    className={`w-3 h-3 rounded-full transition-colors ${
+                    className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full transition-colors ${
                       currentSlide === index ? 'bg-white' : 'bg-white/50'
                     }`}
                   />
@@ -241,16 +241,16 @@ export default function Home() {
       </div>
 
       {/* Available Venues Section */}
-      <div className="bg-white py-8">
-        <div className="container mx-auto px-2">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold text-gray-900">สนามที่เปิดให้จอง</h2>
+      <div className="bg-white py-6 sm:py-8">
+        <div className="container mx-auto px-2 sm:px-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 gap-4">
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">สนามที่เปิดให้จอง</h2>
             
             {/* Filter Badges */}
-            <div className="flex items-center gap-2">
+            <div className="flex gap-2 overflow-x-auto pb-2 sm:overflow-visible sm:pb-0">
               <button
                 onClick={() => setFilterType("all")}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap touch-target ${
                   filterType === "all"
                     ? "bg-green-500 text-white"
                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -260,7 +260,7 @@ export default function Home() {
               </button>
               <button
                 onClick={() => setFilterType("football")}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap touch-target ${
                   filterType === "football"
                     ? "bg-blue-500 text-white"
                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -270,7 +270,7 @@ export default function Home() {
               </button>
               <button
                 onClick={() => setFilterType("fitness")}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap touch-target ${
                   filterType === "fitness"
                     ? "bg-purple-500 text-white"
                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -280,7 +280,7 @@ export default function Home() {
               </button>
               <button
                 onClick={() => setFilterType("swimming")}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap touch-target ${
                   filterType === "swimming"
                     ? "bg-cyan-500 text-white"
                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -292,7 +292,7 @@ export default function Home() {
           </div>
           
           {/* Venues Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {filteredVenues.map((venue) => (
               <Link key={venue.id} href={`/fields/${venue.id}`}>
                 <div className={`bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all cursor-pointer border-2 ${venue.vip ? 'border-yellow-400 bg-gradient-to-br from-yellow-50 to-amber-50 shadow-yellow-200/50' : 'border-gray-200'}`}>
@@ -307,38 +307,38 @@ export default function Home() {
                     <img
                       src={venue.image ?? undefined}
                       alt={venue.name}
-                      className="w-full h-48 object-cover"
+                      className="w-full h-40 sm:h-48 object-cover"
                     />
                   </div>
                   
-                  <div className="p-4">
-                    <h3 className="text-lg font-bold text-gray-900 mb-1">{venue.name}</h3>
-                    <p className="text-sm text-gray-600 mb-3 flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <div className="p-3 sm:p-4">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-1">{venue.name}</h3>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3 flex items-center gap-1">
+                      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                       </svg>
                       {venue.location}
                     </p>
                     
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center justify-between mb-2 sm:mb-3">
                       {(venue.reviews ?? 0) > 0 ? (
                         <span className="bg-green-500 text-white px-2 py-1 rounded text-xs font-semibold">{venue.rating} ({venue.reviews})</span>
                       ) : (
                         <span className="bg-gray-300 text-white px-2 py-1 rounded text-xs font-semibold">ยังไม่มีรีวิว</span>
                       )}
-                      <span className="text-sm text-gray-600 capitalize">{venue.type === 'football' ? 'ฟุตบอล' : venue.type === 'fitness' ? 'ฟิตเนส' : venue.type === 'swimming' ? 'สระว่ายน้ำ' : venue.type}</span>
+                      <span className="text-xs sm:text-sm text-gray-600 capitalize">{venue.type === 'football' ? 'ฟุตบอล' : venue.type === 'fitness' ? 'ฟิตเนส' : venue.type === 'swimming' ? 'สระว่ายน้ำ' : venue.type}</span>
                     </div>
                     
-                    <div className="mb-3">
-                      <span className="text-sm text-gray-600">ราคา:</span>
-                      <div className="text-2xl font-bold text-red-600">฿{venue.pricePerHour ? Number(venue.pricePerHour).toLocaleString() : "-"} <span className="text-sm font-normal text-gray-600">/ ชั่วโมง</span></div>
+                    <div className="mb-2 sm:mb-3">
+                      <span className="text-xs sm:text-sm text-gray-600">ราคา:</span>
+                      <div className="text-lg sm:text-2xl font-bold text-red-600">฿{venue.pricePerHour ? Number(venue.pricePerHour).toLocaleString() : "-"} <span className="text-xs sm:text-sm font-normal text-gray-600">/ ชั่วโมง</span></div>
                     </div>
                     
-                    <div className="flex items-center gap-3 mb-4 text-gray-600">
+                    <div className="flex items-center gap-3 mb-3 sm:mb-4 text-gray-600">
                       {/* Icons removed: feature icons (kept as comment for future reference) */}
                     </div>
                     
-                    <button className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors">
+                    <button className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 sm:px-4 rounded transition-colors text-sm sm:text-base touch-target">
                       จองตอนนี้
                     </button>
                   </div>
@@ -350,9 +350,9 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer className="bg-gray-100 border-t border-gray-200 py-6 mt-[25vh]"> {/* เปลี่ยน mt-lg เป็น mt-12 */}
+      <footer className="bg-gray-100 border-t border-gray-200 py-4 sm:py-6 mt-12 sm:mt-[25vh]">
         <div className="container mx-auto px-4">
-          <div className="text-center text-sm text-gray-600">
+          <div className="text-center text-xs sm:text-sm text-gray-600">
             <p>&copy; 2026 U-Sport Arena. All rights reserved.</p>
             <p className="mt-1">ระบบจองสนามกีฬาออนไลน์</p>
           </div>

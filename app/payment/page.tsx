@@ -207,7 +207,7 @@ export default function PaymentOption() {
                 }
               `}
             >
-              ยืนยันการชำระเงิน
+              ยืนยันการชำระ
             </button>
             <Link href="/" className="flex-1">
               <button className="w-full py-4 px-6 rounded-xl font-bold text-gray-700 border-2 border-gray-300 hover:border-gray-400 transition-all text-lg">

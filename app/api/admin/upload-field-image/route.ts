@@ -68,7 +68,6 @@ export async function POST(req: Request) {
       console.error('Invalid file type:', file.type)
       return NextResponse.json({ error: 'Invalid file type. Only images are allowed.' }, { status: 400 })
     }
-
     // Validate file size (max 10MB)
     const maxSize = 10 * 1024 * 1024 // 10MB
     if (file.size > maxSize) {
