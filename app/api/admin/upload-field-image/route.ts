@@ -14,7 +14,7 @@ export async function POST(req: Request) {
           getAll() {
             return cookies().getAll()
           },
-          setAll(cookiesToSet) {
+          setAll(cookiesToSet: Array<{ name: string; value: string; options?: any }>) {
             cookiesToSet.forEach(({ name, value, options }) => {
               cookies().set(name, value, options)
             })
@@ -69,11 +69,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid file type. Only images are allowed.' }, { status: 400 })
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024 // 5MB
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024 // 10MB
     if (file.size > maxSize) {
       console.error('File too large:', file.size)
-      return NextResponse.json({ error: 'File too large. Maximum size is 5MB.' }, { status: 400 })
+      return NextResponse.json({ error: 'File too large. Maximum size is 10MB.' }, { status: 400 })
     }
 
     const originalName = String(formData.get('filename') || file.name || 'upload')

@@ -145,9 +145,9 @@ export default function FieldManagePage() {
         return null
       }
 
-      const maxSize = 5 * 1024 * 1024 // 5MB
+      const maxSize = 10 * 1024 * 1024 // 10MB
       if (file.size > maxSize) {
-        alert('ขนาดไฟล์ใหญ่เกินไป กรุณาเลือกไฟล์ที่มีขนาดไม่เกิน 5MB')
+        alert('ขนาดไฟล์ใหญ่เกินไป กรุณาเลือกไฟล์ที่มีขนาดไม่เกิน 10MB')
         return null
       }
 
@@ -180,7 +180,7 @@ export default function FieldManagePage() {
         } else if (msg.includes('permission')) {
           userMessage = 'ไม่มีสิทธิ์ในการอัพโหลดไฟล์ กรุณาติดต่อผู้ดูแลระบบ'
         } else if (msg.includes('File too large')) {
-          userMessage = 'ขนาดไฟล์ใหญ่เกินไป กรุณาเลือกไฟล์ที่มีขนาดไม่เกิน 5MB'
+          userMessage = 'ขนาดไฟล์ใหญ่เกินไป กรุณาเลือกไฟล์ที่มีขนาดไม่เกิน 10MB'
         } else if (msg.includes('Invalid file type')) {
           userMessage = 'ประเภทไฟล์ไม่ถูกต้อง กรุณาเลือกไฟล์รูปภาพเท่านั้น'
         } else if (msg.includes('timeout')) {
