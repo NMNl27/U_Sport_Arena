@@ -139,9 +139,23 @@ export default function FieldManagePage() {
     try {
       setUploadingFieldImage(true)
 
+      // Client-side validation
+      if (!file.type.startsWith('image/')) {
+        alert('กรุณาเลือกไฟล์รูปภาพเท่านั้น')
+        return null
+      }
+
+      const maxSize = 5 * 1024 * 1024 // 5MB
+      if (file.size > maxSize) {
+        alert('ขนาดไฟล์ใหญ่เกินไป กรุณาเลือกไฟล์ที่มีขนาดไม่เกิน 5MB')
+        return null
+      }
+
       const form = new FormData()
       form.append('file', file)
       form.append('filename', file.name)
+
+      console.log('Starting field image upload:', { fileName: file.name, fileSize: file.size, fileType: file.type })
 
       const resp = await fetch('/api/admin/upload-field-image', {
         method: 'POST',
@@ -149,16 +163,51 @@ export default function FieldManagePage() {
       })
 
       const json = await resp.json().catch(() => ({}))
+      console.log('Upload response:', { status: resp.status, json })
+      
       if (!resp.ok) {
         const msg = json?.error || `Upload failed with status ${resp.status}`
-        alert('เกิดข้อผิดพลาดในการอัพโหลดรูปภาพ: ' + msg)
+        
+        // Provide more user-friendly error messages in Thai
+        let userMessage = 'เกิดข้อผิดพลาดในการอัพโหลดรูปภาพ: '
+        
+        if (msg.includes('Unauthorized')) {
+          userMessage = 'คุณไม่ได้เข้าสู่ระบบ กรุณาเข้าสู่ระบบก่อน'
+        } else if (msg.includes('Forbidden')) {
+          userMessage = 'คุณไม่มีสิทธิ์ในการอัพโหลดรูปภาพ (ต้องเป็นแอดมิน)'
+        } else if (msg.includes('Storage bucket') && msg.includes('does not exist')) {
+          userMessage = 'ไม่พบที่จัดเก็บรูปภาพ กรุณาติดต่อผู้ดูแลระบบเพื่อตั้งค่า'
+        } else if (msg.includes('permission')) {
+          userMessage = 'ไม่มีสิทธิ์ในการอัพโหลดไฟล์ กรุณาติดต่อผู้ดูแลระบบ'
+        } else if (msg.includes('File too large')) {
+          userMessage = 'ขนาดไฟล์ใหญ่เกินไป กรุณาเลือกไฟล์ที่มีขนาดไม่เกิน 5MB'
+        } else if (msg.includes('Invalid file type')) {
+          userMessage = 'ประเภทไฟล์ไม่ถูกต้อง กรุณาเลือกไฟล์รูปภาพเท่านั้น'
+        } else if (msg.includes('timeout')) {
+          userMessage = 'การอัพโหลดใช้เวลานานเกินไป กรุณาลองใหม่หรือเลือกไฟล์ที่มีขนาดเล็กกว่า'
+        } else if (msg.includes('File already exists')) {
+          userMessage = 'ไฟล์นี้มีอยู่แล้ว กรุณาเลือกไฟล์อื่นหรือลองใหม่'
+        } else if (msg.includes('Missing file')) {
+          userMessage = 'ไม่พบไฟล์ที่จะอัพโหลด กรุณาเลือกไฟล์ใหม่'
+        } else {
+          userMessage = 'เกิดข้อผิดพลาดในการอัพโหลดรูปภาพ: ' + msg
+        }
+        
+        alert(userMessage)
         return null
       }
 
-      return json?.publicUrl || null
+      const publicUrl = json?.publicUrl
+      if (!publicUrl) {
+        alert('อัพโหลดสำเร็จแต่ไม่สามารถดึง URL ของรูปภาพได้ กรุณาลองใหม่')
+        return null
+      }
+
+      console.log('Upload successful:', publicUrl)
+      return publicUrl
     } catch (e: any) {
       console.error('Unexpected error uploading image:', e)
-      alert('เกิดข้อผิดพลาดในการอัพโหลดรูปภาพ: ' + String(e?.message || e))
+      alert('เกิดข้อผิดพลาดที่ไม่คาดคิดในการอัพโหลดรูปภาพ: ' + (e?.message || e))
       return null
     } finally {
       setUploadingFieldImage(false)
