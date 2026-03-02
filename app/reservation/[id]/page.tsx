@@ -195,6 +195,16 @@ export default function ReservationDetails({
   }
 
   const handleBooking = async () => {
+    // Validate date is not in the past
+    const selectedDate = new Date(bookingDate)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    if (selectedDate < today) {
+      alert("ไม่สามารถจองวันที่ในอดีตได้")
+      return
+    }
+
     if (selectedSlots.length === 0) {
       alert("กรุณาเลือกเวลาจองอย่างน้อย 1 ช่วง")
       return
@@ -501,7 +511,19 @@ export default function ReservationDetails({
                   <input
                     type="date"
                     value={bookingDate}
-                    onChange={(e) => setBookingDate(e.target.value)}
+                    min={new Date().toISOString().split("T")[0]}
+                    onChange={(e) => {
+                      const selectedDate = new Date(e.target.value)
+                      const today = new Date()
+                      today.setHours(0, 0, 0, 0)
+                      
+                      if (selectedDate < today) {
+                        alert("ไม่สามารถเลือกวันที่ในอดีตได้")
+                        return
+                      }
+                      
+                      setBookingDate(e.target.value)
+                    }}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-red-600"
                   />
                 </div>
