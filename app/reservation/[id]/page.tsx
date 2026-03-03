@@ -14,6 +14,7 @@ interface TimeSlot {
   startTime: string
   endTime: string
   isBooked: boolean
+  isPastTime?: boolean
   bookedBy?: string
 }
 
@@ -98,16 +99,23 @@ export default function ReservationDetails({
   // Generate time slots from 13:00 to 00:00
   const generateTimeSlots = () => {
     const slots: TimeSlot[] = []
+    const now = new Date()
+    const isToday = bookingDate === now.toISOString().split("T")[0]
+    const currentHour = now.getHours()
 
     for (let hour = 13; hour < 24; hour++) {
       const startHour = hour.toString().padStart(2, "0")
       const endHour = (hour + 1).toString().padStart(2, "0")
+      
+      // Check if this time slot is in the past for today
+      const isPastTime = isToday && hour <= currentHour
       
       slots.push({
         id: `slot-${hour}`,
         startTime: `${startHour}:00`,
         endTime: `${endHour === '24' ? '00:00' : endHour + ':00'}`,
         isBooked: false,
+        isPastTime: isPastTime,
       })
     }
 
@@ -187,7 +195,10 @@ export default function ReservationDetails({
   }, [])
 
   const toggleSlot = (slotId: string) => {
-    if (timeSlots.find((s) => s.id === slotId)?.isBooked) return
+    const slot = timeSlots.find((s) => s.id === slotId)
+    if (!slot) return
+    
+    if (slot.isBooked || slot.isPastTime) return
 
     setSelectedSlots((prev) =>
       prev.includes(slotId) ? prev.filter((id) => id !== slotId) : [...prev, slotId]
@@ -203,6 +214,24 @@ export default function ReservationDetails({
     if (selectedDate < today) {
       alert("ไม่สามารถจองวันที่ในอดีตได้")
       return
+    }
+
+    // Validate time slots are not in the past for today
+    const isToday = bookingDate === new Date().toISOString().split("T")[0]
+    if (isToday) {
+      const currentHour = new Date().getHours()
+      const hasPastTimeSlot = selectedSlots.some(slotId => {
+        const slot = timeSlots.find(s => s.id === slotId)
+        if (!slot) return false
+        
+        const slotHour = parseInt(slot.startTime.split(':')[0])
+        return slotHour <= currentHour
+      })
+      
+      if (hasPastTimeSlot) {
+        alert("ไม่สามารถจองเวลาในอดีตได้")
+        return
+      }
     }
 
     if (selectedSlots.length === 0) {
@@ -538,11 +567,13 @@ export default function ReservationDetails({
                       <button
                         key={slot.id}
                         onClick={() => toggleSlot(slot.id)}
-                        disabled={slot.isBooked || !isAvailable}
+                        disabled={slot.isBooked || slot.isPastTime || !isAvailable}
                         className={`
                           p-3 rounded-lg font-semibold transition-all text-sm
                           ${
-                            slot.isBooked
+                            slot.isPastTime
+                              ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-60"
+                              : slot.isBooked
                               ? "bg-red-500 text-white cursor-not-allowed opacity-60"
                               : selectedSlots.includes(slot.id)
                               ? "bg-green-600 text-white shadow-lg transform scale-105"
@@ -567,6 +598,10 @@ export default function ReservationDetails({
                     <div className="flex items-center gap-2">
                       <div className="w-4 h-4 bg-red-500 rounded"></div>
                       <span className="text-xs text-gray-700">เต็มแล้ว</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-gray-300 rounded"></div>
+                      <span className="text-xs text-gray-700">ไม่สามารถจองได้</span>
                     </div>
                   </div>
                 </div>
